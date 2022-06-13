@@ -1,107 +1,142 @@
-//Servo motor library
+//How Servo Motor works: https://docs.idew.org/internet-of-things-project/references-for-wiring-and-coding/continuous-rotation-servo-motor
 #include <Servo.h>
-Servo zenith_servo;
-Servo azimuthal_servo;
+Servo up_down_servo;
+Servo left_right_servo;
 
-int ldr1= A0;                  // top-right LDR input pin                       
-int ldr2 = A1;                // top-left LDR input pin                     
-int ldr3 = A2;               // bottom-right LDR input pin              
-int ldr4 = A3;              // bottom-left LDR input pin   
+int ldr1 = A0;
+int ldr2 = A1;
+int ldr3 = A2;
+int ldr4 = A3;
+int up_down_servo_pin = 9;
+int left_right_servo_pin = 10;
 
-//servos
-int zenith_servo_pin = 10;
-int azimuthal_servo_pin = 9;
+//This is based on values stated in the research paper
+int initial_up_down_position = 180;
+int initial_left_right_position = 180;
 
-//Variables to store the light intensities
-int ldr1_getter,ldr2_getter, ldr3_getter, ldr4_getter;  
-int sum_of_avg_ldr_values;
-int zenith_difference;                  // |avg_top_ldr_value - avg_bottom_ldr_value|
-const int rotation_threshold = 10;      //Threshold for stopping servo rotation
-const int reset_threshold = 8;          //threshold for reseting the solar
+const int CLOCKWISE_FULL_SPEED = 180;
+const int COUNTER_CLOCKWISE_FULL_SPEED = 0;
+const int ARBITRARY_SPEED = 60;
 
-void setup()
-{
-  Serial.begin(9600);                         
-  zenith_servo.attach(zenith_servo_pin);            
-  azimuthal_servo.attach(azimuthal_servo_pin);        
+const int STOP_MOTOR = 90;
+
+const int MOTOR_MOVEMENT_TIME = 1000;
+
+void move_up();
+void move_down();
+void move_right();
+void move_left();
+
+void setup() {
+
+  Serial.begin(9600);
+  up_down_servo.attach(up_down_servo_pin);
+  left_right_servo.attach(left_right_servo_pin);
 }
 
-void loop()
-{
-   ldr1_getter = analogRead(ldr1);       
-   ldr2_getter = analogRead(ldr2);         
-   ldr3_getter = analogRead(ldr3);         
-   ldr4_getter = analogRead(ldr4);
-   
-   int avg_top_ldr_value = (ldr1_getter + ldr2_getter) / 2;      
-   int avg_bottom_ldr_value = (ldr3_getter + ldr4_getter) / 2;  
-   int avg_left_ldr_value = (ldr1_getter + ldr3_getter) / 2; 
-   int avg_right_ldr_value = (ldr2_getter + ldr4_getter) / 2; 
+void loop(){
 
-   int azimutal_difference = avg_right_ldr_value - avg_left_ldr_value;
-   
-//     automaticSolarTracker();
-       Serial.println(azimutal_difference);
-        
-      moveServoHorizontal(azimutal_difference);
-     
-     delay(1000);
+//  testMotors();  
+  automatic_solar_tracker();
+//  moto_goto_position();    
 }
 
-void moveServoHorizontal(int azimutal_difference){
-  if(abs(azimutal_difference) > rotation_threshold){
-    if (azimutal_difference > 0) {
-        if (azimuthal_servo.read() < 180) {
-          azimuthal_servo.write((azimuthal_servo.read() + 2));
-        }
-      }
-    if (azimutal_difference <  0) {
-      if (azimuthal_servo.read() > 0) {
-        azimuthal_servo.writeMicroseconds((azimuthal_servo.read() - 2));
-      }
-    }
+void automatic_solar_tracker(){
+  
+  
+ int ldr1_value = analogRead(ldr1);
+ int ldr2_value = analogRead(ldr2);
+ int ldr3_value = analogRead(ldr3);
+ int ldr4_value = analogRead(ldr4);
+
+ int averageTop=(ldr1_value+ldr2_value)/2;
+ int averageBottom=(ldr3_value+ldr4_value)/2;
+ int averageLeft=(ldr1_value+ldr3_value)/2;
+ int averageRight=(ldr2_value+ldr4_value)/2;
+
+
+  if (averageTop > averageBottom ){
+     String light_data = "Zenith: " + String(averageTop) + " " + String(averageBottom);
+     Serial.println(light_data);
+     move_up();
   }
+  else if (averageTop < averageBottom ){
+    String light_data = "Zenith: " + String(averageTop) + " " + String(averageBottom);
+    Serial.println(light_data);
+    move_down();
+  }
+  
+  if(averageLeft > averageRight) {
+    String light_data = "Azimuthal: " + String(averageLeft) + " " + String(averageRight);
+    Serial.println(light_data);
+    move_left();
+  }
+  else ifM (averageLeft < averageRight){
+    String light_data = "Azimuthal: " + String(averageLeft) + " " + String(averageRight);
+    Serial.println(light_data);
+    move_right();
+  }
+ delay(MOTOR_MOVEMENT_TIME); 
 }
-//void moveServoVertical(){
-//  
-//}
 
-//void automaticSolarTracker(){
-//     sum_of_avg_ldr_values = avg_top_ldr_value + aavg_bottom_ldr_value + avg_left_ldr_value + avg_right_ldr_value;
-//     
-//    //Finding the difference between the average of the top and bottom LDR
-//     zenith_difference = aavg_top_ldr_value - avg_bottom_ldr_value;  
-//     
-//    //Finding the difference between the average of the right and left LDR  
-//     diffazi = avgright - avgleft;    //Get the different average betwen LDRs right and LDRs lef
-//
-//
-//     if(sum_of_avg_ldr_values < 8){
-//      rotateToInitialPosition();
-//     }
-//    //left-right movement of solar tracker
-//     
-//      
-//             
-//      //up-down movement of solar tracker
-//
-//      if (abs(diffelev) >= light_intensity_difference){    //Change position only if light difference is bigger then thelight_intensity_difference
-//       if (diffelev > 0) {
-//        if (vertical_servo.read() < 180) {
-//          vertical_servo.writeMicroseconds((horizontal_servo.read() - 30));
-//        }
-//      }
-//      if (diffelev <  0) {
-//        if (vertical_servo.read() > 0) {
-//          vertical_servo.writeMicroseconds((horizontal_servo.read() + 30));
-//        }
-//      }
-//    }       
-// }  
+void move_up(){ 
+  int motor_position= up_down_servo.read();  
+  motor_position += 30;
+  up_down_servo.write(motor_position);
+  delay(MOTOR_MOVEMENT_TIME);
+}
 
-// void rotateToInitialPosition(){
-//
-//  //Setting the solar-panel to face sun's rising position
-//  vertical_servo.write(30);
-//  horizontal_servo.write(0);
-// }
+void move_down(){  
+  int motor_position= up_down_servo.read();  
+  motor_position -= 30;
+  up_down_servo.write(motor_position);
+  delay(MOTOR_MOVEMENT_TIME);
+}
+
+void move_right(){
+  int motor_position = left_right_servo.read();
+  motor_position += 30;
+  left_right_servo.write(motor_position);
+  delay(MOTOR_MOVEMENT_TIME);
+}
+
+void move_left(){
+  int motor_position = left_right_servo.read();
+  motor_position -= 30;
+  left_right_servo.write(motor_position);
+  delay(MOTOR_MOVEMENT_TIME);
+}
+
+void testMotors(){
+  for(int p=0; p<=180; p++){
+    up_down_servo.write(p);
+    left_right_servo.write(p);
+    delay(15);
+  }
+
+ for(int p=180; p>=0; p--){
+    up_down_servo.write(p);
+    left_right_servo.write(p);
+    delay(15);
+   }
+}
+
+//Look before touch obfuscated!!!
+void moto_goto_position(){
+     up_down_servo.write(ARBITRARY_SPEED);
+//     left_right_servo.write(CLOCKWISE_FULL_SPEED);
+     delay(300000);
+
+     up_down_servo.write(STOP_MOTOR);
+//     left_right_servo.write(STOP_MOTOR);
+     delay(1000);
+
+     up_down_servo.write(COUNTER_CLOCKWISE_FULL_SPEED);
+//     left_right_servo.write(COUNTER_CLOCKWISE_FULL_SPEED);
+     delay(1000);
+
+     up_down_servo.write(STOP_MOTOR);
+//     left_right_servo.write(STOP_MOTOR);
+     delay(2000);
+}
+
